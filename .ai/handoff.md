@@ -6,7 +6,7 @@
 - [x] `.ai/handoff.md` 创建
 
 ## 待办
-- [ ] 初始 git commit
+- [x] 初始 git commit (2072c28)
 
 ## 验证
 - README.md: 包含安装、配置、命令表、fallback 机制、工作原理、FAQ
