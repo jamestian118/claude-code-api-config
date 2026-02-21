@@ -1,0 +1,38 @@
+{
+  "claude": {
+    "active": "aws",
+    "fallback_order": ["aws", "kiro-pool", "login"],
+    "apis": {
+      "login": {
+        "name": "账号订阅",
+        "mode": "login"
+      },
+      "aws": {
+        "name": "NewCLI AWS",
+        "url": "https://example.com/claude/aws",
+        "key": "<YOUR_KEY>"
+      },
+      "kiro-pool": {
+        "name": "Kiro Pool",
+        "url": "https://example.com/api",
+        "key": "<YOUR_KEY>"
+      }
+    }
+  },
+  "codex": {
+    "active": "infiniteai",
+    "fallback_order": ["infiniteai", "chatgpt"],
+    "apis": {
+      "chatgpt": {
+        "name": "ChatGPT Pro",
+        "mode": "login"
+      },
+      "infiniteai": {
+        "name": "InfiniteAI",
+        "url": "https://api.example.com/v1",
+        "key": "<YOUR_KEY>",
+        "wire_api": "responses"
+      }
+    }
+  }
+}
