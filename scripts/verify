@@ -9,14 +9,14 @@ bash -n capi.zsh
 
 echo "[verify] required files"
 test -f README.md
-test -f apis.json
+test -f apis.json.example
 
-echo "[verify] json parse: apis.json"
+echo "[verify] json parse: apis.json.example"
 python3 - <<'PY'
 import json
 from pathlib import Path
-json.loads(Path('apis.json').read_text())
-print('apis.json: ok')
+json.loads(Path('apis.json.example').read_text())
+print('apis.json.example: ok')
 PY
 
 echo "[verify] OK"

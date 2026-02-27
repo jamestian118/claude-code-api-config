@@ -7,18 +7,19 @@
 ```sh
 # 复制文件
 cp capi.zsh ~/.claude/capi.zsh
-cp apis.json ~/.claude/apis.json
+cp apis.json.example ~/.claude/apis.json
 
 # 加载到 shell
 echo 'source ~/.claude/capi.zsh' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-依赖：`jq`、`curl`
+依赖：`jq`、`curl`（建议安装 `flock` 以启用并发写保护）
 
 ## 配置文件
 
 配置文件路径：`~/.claude/apis.json`
+仓库提供示例：`apis.json.example`（本地真实配置建议放 `apis.json`，已默认 `.gitignore`）
 
 ```json
 {
@@ -86,12 +87,14 @@ capi [claude|codex] <command>
 - **Codex**：切换时更新 `~/.codex/config.toml` 中的 `model_provider` 及对应配置段
 - **Login 模式**：清除环境变量和配置，回退到官方账号登录
 - **`ktp_*` Key**：自动使用 `Authorization: Bearer` 认证头
+- **并发写入**：配置写入优先使用 `flock` 加锁（未安装时降级为无锁并提示）
 
 ## 常见问题
 
 - **API 不可用**：运行 `capi claude test` 检查，确认 URL 和 Key 正确
 - **切换后未生效**：需要重启 Claude Code / Codex CLI（`source ~/.zshrc` 仅更新环境变量）
 - **安全提醒**：不要将真实 Key 提交到仓库，配置文件中使用 `<YOUR_KEY>` 占位
+- **`current` 显示 Key 太短**：默认仅暴露前 4 + 后 2，其余用 `...` 脱敏
 
 ---
 
@@ -103,16 +106,17 @@ A zsh tool for managing API configurations for **Claude Code** and **Codex CLI**
 
 ```sh
 cp capi.zsh ~/.claude/capi.zsh
-cp apis.json ~/.claude/apis.json
+cp apis.json.example ~/.claude/apis.json
 echo 'source ~/.claude/capi.zsh' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-Requires: `jq`, `curl`
+Requires: `jq`, `curl` (`flock` recommended for concurrent write locking)
 
 ## Configuration
 
 Config file: `~/.claude/apis.json`
+Template in repo: `apis.json.example` (local `apis.json` is gitignored by default)
 
 Two modes per API entry:
 - `"mode": "login"` — account login, no URL/key needed
@@ -154,9 +158,11 @@ Omitting `claude`/`codex` runs `list`, `test`, `fallback`, `current` for both.
 - **Codex**: Updates `model_provider` in `~/.codex/config.toml`
 - **Login mode**: Clears env vars/config, falls back to official account login
 - **`ktp_*` keys**: Automatically use `Authorization: Bearer` header
+- **Concurrent writes**: Uses `flock` when available (falls back to unlocked writes with warning)
 
 ## Troubleshooting
 
 - **API unreachable**: Run `capi claude test`, verify URL and key
 - **Changes not taking effect**: Restart Claude Code / Codex CLI
 - **Security**: Never commit real API keys — use `<YOUR_KEY>` placeholders
+- **`current` output too short**: Key display is intentionally masked to first 4 + last 2
