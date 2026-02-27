@@ -10,6 +10,7 @@ bash -n capi.zsh
 echo "[verify] required files"
 test -f README.md
 test -f apis.json.example
+test -f tests/test_capi.zsh
 
 echo "[verify] json parse: apis.json.example"
 python3 - <<'PY'
@@ -18,5 +19,8 @@ from pathlib import Path
 json.loads(Path('apis.json.example').read_text())
 print('apis.json.example: ok')
 PY
+
+echo "[verify] zsh regression: tests/test_capi.zsh"
+zsh tests/test_capi.zsh
 
 echo "[verify] OK"

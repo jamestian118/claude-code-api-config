@@ -91,3 +91,41 @@
 
 ### 备注
 - 本轮仅新增 handoff 证据记录，便于 Gate 3 审核引用。
+
+## Phase 4 CAPI 4.13（2026-02-27 20:55:21 +0800）
+- lane: CAPI Phase 4（重启任务）
+- scope: 新增 `tests/test_capi.zsh`（JSON 操作 + fallback 逻辑）并接入 `scripts/verify`
+- branch: `ai/20260227-phase0-upgrade`
+- commit(before append): `e104f24`
+
+### 当前状态
+- 已新增：`tests/test_capi.zsh`
+- 已修改：`scripts/verify`、`docs/verify.usage.zh-en.md`、`docs/scripts.md`
+- git status 摘要（提交前）：
+  - modified: `docs/scripts.md`, `docs/verify.usage.zh-en.md`, `scripts/verify`
+  - added: `tests/test_capi.zsh`
+  - untracked(忽略): `.DS_Store`
+
+### 验证证据
+- strict
+  - 命令：`/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+  - exit code: `0`
+  - 关键输出：`strict_result=pass`
+- verify
+  - 命令：`./scripts/verify`
+  - exit code: `0`
+  - 关键输出：
+    - `[verify] zsh regression: tests/test_capi.zsh`
+    - `[test_capi] OK`
+    - `[verify] OK`
+- secrets-check
+  - 命令：`./scripts/secrets-check`
+  - exit code: `0`
+  - 关键输出：`[secrets-check] OK`
+
+### 下一步
+1. 提交本次变更（建议 message：`test: add zsh regression suite for capi`）。
+2. 如需消除 verify 日志中的降级告警，可安装 `flock`（`brew install flock`）。
+
+### 已知问题
+- 测试环境未安装 `flock` 时会输出一次降级提示（不影响退出码与测试通过）。
