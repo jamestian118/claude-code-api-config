@@ -42,3 +42,29 @@
 1. 提交当前变更（排除 `.DS_Store`）。
 2. 如需强制加锁，可在运行环境安装 `flock`（当前实现已带降级提示）。
 3. 可补充 `scripts/secrets-check` 以满足仓库完整安全检查闭环。
+
+## 当前状态（2026-02-27 Phase 2 CAPI）
+- branch: `ai/20260227-phase0-upgrade`
+- base commit: `3bd5a28`
+- git status 摘要（本次任务后，提交前）：
+  - modified: `README.md`, `capi.zsh`
+  - added: `LICENSE`
+  - untracked (忽略): `.DS_Store`
+
+## 验证命令与关键输出（Phase 2）
+- verify:
+  - 命令：`./scripts/verify`
+  - 关键输出：`[verify] OK`
+- secrets-check:
+  - 命令：`./scripts/secrets-check`
+  - 关键输出：`[secrets-check] OK`
+
+## Done（Phase 2）
+- 新增 `LICENSE`（MIT）。
+- `capi.zsh` 新增 `_CAPI_VERSION="0.1.0"` 与 `version|--version|-v` 子命令。
+- 统一工具参数解析与默认工具集合为 `_CAPI_TOOLS` 驱动，替换原有硬编码分支。
+- 双语 usage 已同步更新（`README.md` 命令表新增 `version`）。
+
+## Next Steps（Phase 2）
+1. 提交本次变更（排除 `.DS_Store`）。
+2. 如需发版，可同步 bump `VERSION` 与 `_CAPI_VERSION`。

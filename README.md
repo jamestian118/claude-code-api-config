@@ -67,6 +67,7 @@ capi [claude|codex] <command>
 | `test [id]` | 检测 API 可用性 | `capi test` / `capi claude test aws` |
 | `fallback` | 当前不可用时自动切换到下一个 | `capi fallback` |
 | `current` | 显示当前激活的 API 详情 | `capi current` |
+| `version` | 显示 capi 版本号 | `capi version` |
 | `help` | 显示帮助 | `capi help` |
 
 不指定 `claude`/`codex` 时，`list`、`test`、`fallback`、`current` 会同时显示两者。
@@ -144,6 +145,7 @@ capi [claude|codex] <command>
 | `test [id]` | Test API connectivity | `capi test` |
 | `fallback` | Auto-switch if current is down | `capi fallback` |
 | `current` | Show active API details | `capi current` |
+| `version` | Show capi version | `capi version` |
 | `help` | Show help | `capi help` |
 
 Omitting `claude`/`codex` runs `list`, `test`, `fallback`, `current` for both.

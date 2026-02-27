@@ -4,6 +4,7 @@
 # 用法: capi [claude|codex] <command>
 
 _CAPI_FILE="$HOME/.claude/apis.json"
+_CAPI_VERSION="0.1.0"
 _CAPI_TOOLS=(claude codex)
 _CAPI_LOCK_WARNED=0
 
@@ -11,6 +12,20 @@ _CAPI_LOCK_WARNED=0
 
 # 读取指定工具的字段
 _capi_get() { jq -r ".$1" "$_CAPI_FILE" 2>/dev/null; }
+
+_capi_tool_usage() {
+  local IFS='|'
+  echo "${_CAPI_TOOLS[*]}"
+}
+
+_capi_is_supported_tool() {
+  local candidate="$1"
+  local t
+  for t in "${_CAPI_TOOLS[@]}"; do
+    [[ "$candidate" == "$t" ]] && return 0
+  done
+  return 1
+}
 
 # 对目标文件执行带锁操作；若缺少 flock，降级为无锁写入并提示一次
 _capi_with_lock() {
@@ -195,23 +210,33 @@ _capi_load_codex() {
 
 _capi_load() {
   _capi_secure_file "$_CAPI_FILE"
-  _capi_load_claude
-  _capi_load_codex
+  local t loader
+  for t in "${_CAPI_TOOLS[@]}"; do
+    loader="_capi_load_${t}"
+    if typeset -f "$loader" >/dev/null 2>&1; then
+      "$loader"
+    fi
+  done
 }
 
 # ─── 主命令 ───
 
 capi() {
   local tool="" cmd=""
+  local tool_usage="$(_capi_tool_usage)"
 
-  # 解析参数：capi [claude|codex] <command> [args...]
-  if [[ "$1" == "claude" || "$1" == "codex" ]]; then
+  # 解析参数：capi [tool] <command> [args...]
+  if _capi_is_supported_tool "${1:-}"; then
     tool="$1"; shift
   fi
   cmd="${1:-list}"; shift 2>/dev/null
 
-  local tools=("${tool:-claude}" "${tool:-codex}")
-  [[ -n "$tool" ]] && tools=("$tool")
+  local tools=()
+  if [[ -n "$tool" ]]; then
+    tools=("$tool")
+  else
+    tools=("${_CAPI_TOOLS[@]}")
+  fi
 
   case "$cmd" in
     list|ls)
@@ -236,7 +261,7 @@ capi() {
       ;;
 
     use|switch)
-      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <claude|codex> use [id]"; return 1; }
+      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <${tool_usage}> use [id]"; return 1; }
       local t="${tools[1]}" id="$1"
       if [[ -z "$id" ]]; then
         local active=$(_capi_get "${t}.active")
@@ -270,7 +295,7 @@ capi() {
       ;;
 
     add)
-      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <claude|codex> add [id]"; return 1; }
+      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <${tool_usage}> add [id]"; return 1; }
       local t="${tools[1]}" id="$1"
       [[ -z "$id" ]] && { echo -n "API 标识: "; read id; }
       local exists=$(_capi_get "${t}.apis.\"${id}\" // empty")
@@ -308,7 +333,7 @@ capi() {
       ;;
 
     rm|remove|del)
-      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <claude|codex> rm <id>"; return 1; }
+      [[ ${#tools[@]} -gt 1 ]] && { echo "用法: capi <${tool_usage}> rm <id>"; return 1; }
       local t="${tools[1]}" id="$1"
       [[ -z "$id" ]] && { echo "用法: capi $t rm <id>"; return 1; }
       local active=$(_capi_get "${t}.active")
@@ -414,11 +439,15 @@ capi() {
       done
       ;;
 
+    version|--version|-v)
+      echo "capi ${_CAPI_VERSION}"
+      ;;
+
     help|--help|-h)
-      cat <<'EOF'
+      cat <<EOF
 capi - Claude Code & Codex CLI API 统一管理工具
 
-用法: capi [claude|codex] <command>
+用法: capi [${tool_usage}] <command>
 
 命令:
   list              列出 API 配置
@@ -428,6 +457,7 @@ capi - Claude Code & Codex CLI API 统一管理工具
   test [id]         检测可用性
   fallback          自动 fallback（当前不可用则切换）
   current           显示当前配置
+  version           显示 capi 版本
   help              帮助
 
 示例:
