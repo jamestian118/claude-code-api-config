@@ -7,6 +7,8 @@ _CAPI_FILE="$HOME/.claude/apis.json"
 _CAPI_VERSION="0.1.0"
 _CAPI_TOOLS=(claude codex)
 _CAPI_LOCK_WARNED=0
+_CAPI_DEFAULT_TEST_MODEL_CLAUDE="claude-sonnet-4-20250514"
+_CAPI_DEFAULT_TEST_MODEL_CODEX="gpt-5"
 
 # ─── 内部工具函数 ───
 
@@ -54,24 +56,49 @@ _capi_secure_file() {
   chmod 600 "$file" 2>/dev/null || true
 }
 
-_capi_jq_write_unlocked() {
+_capi_write_with_jq() {
   local file="$1"
-  shift
-  local tmp
-  tmp=$(mktemp) || return 1
-  if jq "$@" "$file" > "$tmp"; then
-    mv "$tmp" "$file"
-    _capi_secure_file "$file"
-  else
-    rm -f "$tmp"
-    return 1
-  fi
+  local tmp="$2"
+  shift 2
+  jq "$@" "$file" > "$tmp"
 }
 
-_capi_jq_write() {
+_capi_write_unlocked() {
+  local file="$1"
+  local writer="$2"
+  shift 2
+
+  local tmp
+  tmp=$(mktemp "${TMPDIR:-/tmp}/capi-write.XXXXXX") || return 1
+
+  (
+    trap 'rm -f "$tmp"' EXIT INT TERM HUP
+    "$writer" "$file" "$tmp" "$@" || exit 1
+    mv "$tmp" "$file" || exit 1
+  ) || return 1
+
+  _capi_secure_file "$file"
+}
+
+_capi_write() {
   local file="$1"
   shift
-  _capi_with_lock "$file" _capi_jq_write_unlocked "$file" "$@"
+  _capi_with_lock "$file" _capi_write_unlocked "$file" _capi_write_with_jq "$@"
+}
+
+_capi_api_ids() {
+  local tool="$1"
+  jq -r --arg tool "$tool" '.[$tool].apis | keys[]' "$_CAPI_FILE" 2>/dev/null
+}
+
+_capi_fallback_order() {
+  local tool="$1"
+  jq -r --arg tool "$tool" '.[$tool].fallback_order[]' "$_CAPI_FILE" 2>/dev/null
+}
+
+_capi_find_login_id() {
+  local tool="$1"
+  jq -r --arg tool "$tool" '.[$tool].apis | to_entries[] | select(.value.mode=="login") | .key' "$_CAPI_FILE" 2>/dev/null | head -n 1
 }
 
 _capi_update_claude_config_unlocked() {
@@ -81,9 +108,9 @@ _capi_update_claude_config_unlocked() {
   [[ ! -f "$config_file" ]] && return 0
 
   if [[ "$mode" == "login" ]]; then
-    _capi_jq_write_unlocked "$config_file" 'del(.primaryApiKey)'
+    _capi_write_unlocked "$config_file" _capi_write_with_jq 'del(.primaryApiKey)'
   else
-    _capi_jq_write_unlocked "$config_file" --arg k "$key" '.primaryApiKey=$k'
+    _capi_write_unlocked "$config_file" _capi_write_with_jq --arg k "$key" '.primaryApiKey=$k'
   fi
 }
 
@@ -137,12 +164,19 @@ _capi_test_one() {
 
   local url=$(_capi_get "${tool}.apis.\"${id}\".url")
   local key=$(_capi_get "${tool}.apis.\"${id}\".key")
-  local tmpbody=$(mktemp)
+  local tmpbody
+  tmpbody=$(mktemp) || return 1
   local http_code=""
 
   if [[ "$tool" == "claude" ]]; then
+    local test_model=$(_capi_get "${tool}.apis.\"${id}\".test_model // \"${_CAPI_DEFAULT_TEST_MODEL_CLAUDE}\"")
     local endpoint=$(_capi_claude_endpoint "$url")
     local auth_header="x-api-key: $key"
+    local payload
+    payload=$(jq -cn --arg model "$test_model" '{"model":$model,"max_tokens":1,"messages":[{"role":"user","content":"hi"}]}') || {
+      rm -f "$tmpbody"
+      return 1
+    }
     # ktp_ 开头用 Bearer
     [[ "$key" == ktp_* ]] && auth_header="Authorization: Bearer $key"
     http_code=$(curl -s -o "$tmpbody" -w '%{http_code}' --max-time 8 \
@@ -150,13 +184,29 @@ _capi_test_one() {
       -H "$auth_header" \
       -H "anthropic-version: 2023-06-01" \
       -H "content-type: application/json" \
-      -d '{"model":"claude-sonnet-4-20250514","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' 2>/dev/null)
+      -d "$payload" 2>/dev/null)
   elif [[ "$tool" == "codex" ]]; then
+    local wire_api=$(_capi_get "${tool}.apis.\"${id}\".wire_api // \"responses\"")
+    local test_model=$(_capi_get "${tool}.apis.\"${id}\".test_model // \"${_CAPI_DEFAULT_TEST_MODEL_CODEX}\"")
+    local endpoint="${url%/}/responses"
+    local payload
+    if [[ "$wire_api" == "chat" ]]; then
+      endpoint="${url%/}/chat/completions"
+      payload=$(jq -cn --arg model "$test_model" '{"model":$model,"messages":[{"role":"user","content":"hi"}],"max_tokens":1}') || {
+        rm -f "$tmpbody"
+        return 1
+      }
+    else
+      payload=$(jq -cn --arg model "$test_model" '{"model":$model,"input":"hi","max_output_tokens":1}') || {
+        rm -f "$tmpbody"
+        return 1
+      }
+    fi
     http_code=$(curl -s -o "$tmpbody" -w '%{http_code}' --max-time 8 \
-      "${url%/}/responses" \
+      "$endpoint" \
       -H "Authorization: Bearer $key" \
       -H "content-type: application/json" \
-      -d '{"model":"gpt-5","input":"hi","max_output_tokens":1}' 2>/dev/null)
+      -d "$payload" 2>/dev/null)
   fi
 
   local result=1
@@ -244,7 +294,7 @@ capi() {
         local active=$(_capi_get "${t}.active")
         echo "${t:u} API 列表:"
         echo "─────────────────────────────────"
-        local ids=($(jq -r ".${t}.apis | keys[]" "$_CAPI_FILE"))
+        local ids=($(_capi_api_ids "$t"))
         for id in "${ids[@]}"; do
           local name=$(_capi_get "${t}.apis.\"${id}\".name")
           local mode=$(_capi_get "${t}.apis.\"${id}\".mode // empty")
@@ -265,7 +315,7 @@ capi() {
       local t="${tools[1]}" id="$1"
       if [[ -z "$id" ]]; then
         local active=$(_capi_get "${t}.active")
-        local ids=($(jq -r ".${t}.apis | keys[]" "$_CAPI_FILE"))
+        local ids=($(_capi_api_ids "$t"))
         echo "选择 ${t:u} API:"
         local i=1
         for aid in "${ids[@]}"; do
@@ -285,7 +335,7 @@ capi() {
       fi
       local exists=$(_capi_get "${t}.apis.\"${id}\" // empty")
       [[ -z "$exists" ]] && { echo "✗ API '$id' 不存在"; return 1; }
-      _capi_jq_write "$_CAPI_FILE" --arg tool "$t" --arg id "$id" '.[$tool].active = $id' || {
+      _capi_write "$_CAPI_FILE" --arg tool "$t" --arg id "$id" '.[$tool].active = $id' || {
         echo "✗ 写入配置失败"
         return 1
       }
@@ -306,7 +356,7 @@ capi() {
       if [[ "$t" == "codex" ]]; then
         echo -n "wire_api (responses/chat): "
         read wire
-        _capi_jq_write "$_CAPI_FILE" \
+        _capi_write "$_CAPI_FILE" \
           --arg tool "$t" \
           --arg id "$id" \
           --arg name "$name" \
@@ -318,7 +368,7 @@ capi() {
           return 1
         }
       else
-        _capi_jq_write "$_CAPI_FILE" \
+        _capi_write "$_CAPI_FILE" \
           --arg tool "$t" \
           --arg id "$id" \
           --arg name "$name" \
@@ -338,7 +388,7 @@ capi() {
       [[ -z "$id" ]] && { echo "用法: capi $t rm <id>"; return 1; }
       local active=$(_capi_get "${t}.active")
       [[ "$id" == "$active" ]] && { echo "✗ 不能删除当前激活的 API"; return 1; }
-      _capi_jq_write "$_CAPI_FILE" --arg tool "$t" --arg id "$id" 'del(.[$tool].apis[$id]) | .[$tool].fallback_order -= [$id]' || {
+      _capi_write "$_CAPI_FILE" --arg tool "$t" --arg id "$id" 'del(.[$tool].apis[$id]) | .[$tool].fallback_order -= [$id]' || {
         echo "✗ 写入配置失败"
         return 1
       }
@@ -350,7 +400,7 @@ capi() {
       for t in "${tools[@]}"; do
         local active=$(_capi_get "${t}.active")
         local ids
-        [[ -n "$target_id" ]] && ids=("$target_id") || ids=($(jq -r ".${t}.apis | keys[]" "$_CAPI_FILE"))
+        [[ -n "$target_id" ]] && ids=("$target_id") || ids=($(_capi_api_ids "$t"))
         echo "检测 ${t:u} API 可用性..."
         echo "─────────────────────────────────"
         for aid in "${ids[@]}"; do
@@ -394,7 +444,7 @@ capi() {
         echo "✗ 不可用 — $_CAPI_LAST_ERR"
 
         # 按 fallback_order 尝试
-        local order=($(jq -r ".${t}.fallback_order[]" "$_CAPI_FILE"))
+        local order=($(_capi_fallback_order "$t"))
         local switched=0
         for fid in "${order[@]}"; do
           [[ "$fid" == "$active" ]] && continue
@@ -404,7 +454,7 @@ capi() {
           _CAPI_LAST_ERR=""
           _capi_test_one "$t" "$fid"
           if [[ $? -eq 0 ]]; then
-            _capi_jq_write "$_CAPI_FILE" --arg tool "$t" --arg id "$fid" '.[$tool].active = $id' || {
+            _capi_write "$_CAPI_FILE" --arg tool "$t" --arg id "$fid" '.[$tool].active = $id' || {
               echo "✗ 写入配置失败"
               continue
             }
@@ -417,7 +467,13 @@ capi() {
             echo "✗ $_CAPI_LAST_ERR"
           fi
         done
-        [[ $switched -eq 0 ]] && echo "  ✗ 所有 API 均不可用"
+        if [[ $switched -eq 0 ]]; then
+          echo "  ✗ 所有 API 均不可用"
+          local login_id=$(_capi_find_login_id "$t")
+          if [[ -n "$login_id" ]]; then
+            echo "  提示: 可切换到登录模式：capi $t use $login_id"
+          fi
+        fi
       done
       ;;
 

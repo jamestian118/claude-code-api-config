@@ -28,8 +28,8 @@ source ~/.zshrc
     "fallback_order": ["aws", "kiro-pool", "login"],
     "apis": {
       "login": { "name": "账号订阅", "mode": "login" },
-      "aws": { "name": "NewCLI AWS", "url": "https://example.com/claude/aws", "key": "<YOUR_KEY>" },
-      "kiro-pool": { "name": "Kiro Pool", "url": "https://example.com/api", "key": "<YOUR_KEY>" }
+      "aws": { "name": "NewCLI AWS", "url": "https://example.com/claude/aws", "key": "<YOUR_KEY>", "test_model": "claude-sonnet-4-20250514" },
+      "kiro-pool": { "name": "Kiro Pool", "url": "https://example.com/api", "key": "<YOUR_KEY>", "test_model": "claude-sonnet-4-20250514" }
     }
   },
   "codex": {
@@ -37,7 +37,7 @@ source ~/.zshrc
     "fallback_order": ["infiniteai", "chatgpt"],
     "apis": {
       "chatgpt": { "name": "ChatGPT Pro", "mode": "login" },
-      "infiniteai": { "name": "InfiniteAI", "url": "https://api.example.com/v1", "key": "<YOUR_KEY>", "wire_api": "responses" }
+      "infiniteai": { "name": "InfiniteAI", "url": "https://api.example.com/v1", "key": "<YOUR_KEY>", "wire_api": "responses", "test_model": "gpt-5" }
     }
   }
 }
@@ -51,6 +51,7 @@ source ~/.zshrc
 - `active` — 当前激活的 API 标识
 - `fallback_order` — fallback 优先级顺序
 - `wire_api` — Codex 专用，指定 API 协议（`responses` 或 `chat`）
+- `test_model` — 健康检查时使用的模型名（未配置时使用内置默认值）
 
 ## 命令
 
@@ -80,7 +81,7 @@ capi [claude|codex] <command>
 2. 如果可用 → 保持不变
 3. 如果不可用 → 按 `fallback_order` 顺序逐个测试（跳过 login 模式）
 4. 找到可用的 → 自动切换并加载配置
-5. 全部不可用 → 提示错误
+5. 全部不可用 → 提示错误，并给出可切换 login 模式的命令（若配置中存在 login entry）
 
 ## 工作原理
 
@@ -88,6 +89,8 @@ capi [claude|codex] <command>
 - **Codex**：切换时更新 `~/.codex/config.toml` 中的 `model_provider` 及对应配置段
 - **Login 模式**：清除环境变量和配置，回退到官方账号登录
 - **`ktp_*` Key**：自动使用 `Authorization: Bearer` 认证头
+- **健康检查模型**：`test`/`fallback` 会读取每个 API 的 `test_model`，未配置时回落到默认模型
+- **Codex 健康检查协议**：`wire_api=responses` 走 `/responses`，`wire_api=chat` 走 `/chat/completions`
 - **并发写入**：配置写入优先使用 `flock` 加锁（未安装时降级为无锁并提示）
 
 ## 常见问题
@@ -127,6 +130,7 @@ Key fields:
 - `active` — currently active API id
 - `fallback_order` — failover priority order
 - `wire_api` — Codex-only, specifies API protocol (`responses` or `chat`)
+- `test_model` — model name used for health checks (falls back to built-in defaults when omitted)
 
 See the Chinese section above for a full config example.
 
@@ -152,7 +156,7 @@ Omitting `claude`/`codex` runs `list`, `test`, `fallback`, `current` for both.
 
 ## Fallback
 
-`capi fallback` tests the active API first. If unavailable, it tries each entry in `fallback_order` (skipping login mode) until a working one is found and auto-switches.
+`capi fallback` tests the active API first. If unavailable, it tries each entry in `fallback_order` (skipping login mode) until a working one is found and auto-switches. If all API-key entries fail, it prints a login-mode switch hint when a login entry exists.
 
 ## How It Works
 
@@ -160,6 +164,8 @@ Omitting `claude`/`codex` runs `list`, `test`, `fallback`, `current` for both.
 - **Codex**: Updates `model_provider` in `~/.codex/config.toml`
 - **Login mode**: Clears env vars/config, falls back to official account login
 - **`ktp_*` keys**: Automatically use `Authorization: Bearer` header
+- **Health-check model**: `test`/`fallback` read per-API `test_model`, with safe defaults when not configured
+- **Codex health-check protocol**: `wire_api=responses` calls `/responses`; `wire_api=chat` calls `/chat/completions`
 - **Concurrent writes**: Uses `flock` when available (falls back to unlocked writes with warning)
 
 ## Troubleshooting

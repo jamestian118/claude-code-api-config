@@ -129,3 +129,39 @@
 
 ### 已知问题
 - 测试环境未安装 `flock` 时会输出一次降级提示（不影响退出码与测试通过）。
+
+## Phase 5 CAPI 5.20-5.23（2026-02-27 21:08:16 +0800）
+- lane: CAPI Phase 5（唯一 ownership）
+- scope: 健康检查模型配置化 + Codex wire_api endpoint 选择 + `_capi_write` 抽象与写入路径统一 + fallback 全失败 login 提示
+- branch: `ai/20260227-phase0-upgrade`
+- commit(before append): `467b2eb`
+
+### 当前状态（提交前）
+- modified: `README.md`, `apis.json.example`, `capi.zsh`, `tests/test_capi.zsh`
+- untracked(忽略): `.DS_Store`
+
+### 验证证据
+- strict
+  - 命令：`/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+  - exit code: `0`
+  - 关键输出：`strict_result=pass`
+- verify
+  - 命令：`./scripts/verify`
+  - exit code: `0`
+  - 关键输出：`[test_capi] OK`、`[verify] OK`
+- secrets-check
+  - 命令：`./scripts/secrets-check`
+  - exit code: `0`
+  - 关键输出：`[secrets-check] OK`
+
+### Done
+1. `apis.json.example` 新增 `test_model` 示例字段（Claude/Codex）。
+2. `capi.zsh` 健康检查支持读取 `test_model`，并在 Codex 场景按 `wire_api` 选择 `/responses` 或 `/chat/completions`。
+3. `capi.zsh` 抽象 `_capi_write`（原子写 + `trap` 清理临时文件），统一写入路径并替换原 `_capi_jq_write` 调用点。
+4. `capi.zsh` fallback 全失败后，若存在 login entry，提示 `capi <tool> use <login_id>`。
+5. `tests/test_capi.zsh` 扩充回归：`test_model`、`wire_api` endpoint、fallback login 提示。
+6. `README.md`（中文 + English）同步更新字段与行为说明。
+
+### Next Steps
+1. 提交本次变更（建议 message：`feat(refactor): harden capi health and write path`）。
+2. 如需减少测试日志告警，可在执行环境安装 `flock`（`brew install flock`）。
