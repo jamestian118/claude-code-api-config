@@ -165,3 +165,25 @@
 ### Next Steps
 1. 提交本次变更（建议 message：`feat(refactor): harden capi health and write path`）。
 2. 如需减少测试日志告警，可在执行环境安装 `flock`（`brew install flock`）。
+
+## 2026-02-27 Phase 7 CAPI lane（7.10）
+
+### Scope
+- 7.10 参数化 policy-stack 路径：`AGENTS.md` 改为使用 `UHK_ROOT` 环境变量，不再固定绝对路径。
+
+### Changes
+- modified: `AGENTS.md`
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict: `strict_result=pass`
+- verify: `[test_capi] OK` + `[verify] OK`
+- secrets-check: `[secrets-check] OK`
+
+### Notes
+- `.DS_Store` 为本地未跟踪噪音文件，未纳入提交。
+- 本 lane 由主线程在 agent thread limit 约束下补齐执行。

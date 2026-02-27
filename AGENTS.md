@@ -2,7 +2,7 @@
 
 ## 1) Policy Stack 调用
 - 每次进入项目（主 agent + 子 agent）前，先运行：
-  `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool <codex|claude|gemini> --cwd "$PWD" --strict --strict-profile harness`
+  `UHK_ROOT="${UHK_ROOT:-$HOME/Documents/Code/universal-harness-kit}" "$UHK_ROOT/scripts/agent-policy-stack" --tool <codex|claude|gemini> --cwd "$PWD" --strict --strict-profile harness`
 
 ## 2) Repo 结构（Map）
 - `capi.zsh`：主入口脚本
