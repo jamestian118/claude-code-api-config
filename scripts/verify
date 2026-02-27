@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+echo "[verify] bash syntax: capi.zsh"
+bash -n capi.zsh
+
+echo "[verify] required files"
+test -f README.md
+test -f apis.json
+
+echo "[verify] json parse: apis.json"
+python3 - <<'PY'
+import json
+from pathlib import Path
+json.loads(Path('apis.json').read_text())
+print('apis.json: ok')
+PY
+
+echo "[verify] OK"
