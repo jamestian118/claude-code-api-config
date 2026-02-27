@@ -68,3 +68,26 @@
 ## Next Steps（Phase 2）
 1. 提交本次变更（排除 `.DS_Store`）。
 2. 如需发版，可同步 bump `VERSION` 与 `_CAPI_VERSION`。
+
+## Gate 3 支持摘要（2026-02-27 20:35:56 +0800）
+- lane: CAPI Phase 3 support（唯一 ownership）
+- scope: 仅执行验证与证据记录；未改业务代码
+- branch: `ai/20260227-phase0-upgrade`
+- commit(before append): `1856b7c`
+
+### 验证证据
+- strict
+  - 命令：`/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "/Users/Zhuanz/Documents/Code/claude-code-api-config" --strict --strict-profile harness`
+  - exit code：`0`
+  - 关键输出：`strict_result=pass`
+- verify
+  - 命令：`./scripts/verify`
+  - exit code：`0`
+  - 关键输出：`[verify] OK`
+- secrets-check
+  - 命令：`./scripts/secrets-check`
+  - exit code：`0`
+  - 关键输出：`[secrets-check] OK`
+
+### 备注
+- 本轮仅新增 handoff 证据记录，便于 Gate 3 审核引用。
