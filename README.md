@@ -132,7 +132,45 @@ Key fields:
 - `wire_api` — Codex-only, specifies API protocol (`responses` or `chat`)
 - `test_model` — model name used for health checks (falls back to built-in defaults when omitted)
 
-See the Chinese section above for a full config example.
+English config example:
+
+```json
+{
+  "claude": {
+    "active": "aws",
+    "fallback_order": ["aws", "kiro-pool", "login-main"],
+    "apis": {
+      "aws": {
+        "name": "NewCLI AWS",
+        "url": "https://example.com/claude/aws",
+        "key": "<YOUR_KEY>",
+        "test_model": "claude-sonnet-4-20250514"
+      },
+      "login-main": {
+        "name": "Claude Login",
+        "mode": "login"
+      }
+    }
+  },
+  "codex": {
+    "active": "infiniteai",
+    "fallback_order": ["infiniteai", "login-main"],
+    "apis": {
+      "infiniteai": {
+        "name": "InfiniteAI",
+        "url": "https://api.example.com/v1",
+        "key": "<YOUR_KEY>",
+        "wire_api": "responses",
+        "test_model": "gpt-5"
+      },
+      "login-main": {
+        "name": "Codex Login",
+        "mode": "login"
+      }
+    }
+  }
+}
+```
 
 ## Commands
 

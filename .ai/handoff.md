@@ -187,3 +187,8 @@
 ### Notes
 - `.DS_Store` 为本地未跟踪噪音文件，未纳入提交。
 - 本 lane 由主线程在 agent thread limit 约束下补齐执行。
+
+## 2026-02-27 Phase 8 CAPI（8.6/8.7）
+- README English section 增加完整 config example。
+- 新增 `CHANGELOG.md`。
+- 验证：strict/verify/secrets 全绿（见 `/tmp/phase8-claude-code-api-config.log`）。
